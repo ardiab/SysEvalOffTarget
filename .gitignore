@@ -1,4 +1,23 @@
-files/datasets/GUIDE_seq_positive.csv
-files/datasets/GUIDE_seq_negative.csv
-files/datasets/CHANGE_seq_positive.csv
-files/datasets/CHANGE_seq_negative.csv
+/files/old_files/
+__pycache__/
+SysEvalOffTarget_src/__pycache__
+eda.html
+eda.ipynb
+eda.py
+main.py
+models_predictions.log
+plots_final copy 2.py
+plots_final copy.py
+plots_final.py
+prepare_data.ipynb
+prepare_data.log
+retrain_with_on_target.log
+script.py
+test_main.py
+test_models.log
+test_the_retrain_with_on_target.log
+test_train_with_on_target_test_without.log
+train_main.py
+train_models.log
+train_with_old_dataset.log
+.vscode/settings.json
