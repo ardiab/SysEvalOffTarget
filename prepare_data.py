@@ -4,6 +4,7 @@
 """
 
 # %%
+from pathlib import Path
 import pandas as pd
 from Bio.Seq import Seq
 from SysEvalOffTarget_src import general_utilities
@@ -40,17 +41,22 @@ def create_positives(dataset_excel_path=general_utilities.CHANGE_SEQ_PATH, data_
     else:
         dataset_undefined_df = None
         dataset_positive_df = dataset_df
+        dataset_positive_df['label'] = 1
     # save the sets
     if save_sets:
-        dataset_positive_df.to_csv(general_utilities.DATASETS_PATH + '{}_positive.csv'.format(data_type))
+        dir_path = general_utilities.DATASETS_PATH
+        dir_path += 'exclude_on_targets/' if exclude_on_targets else 'include_on_targets/'
+        Path(dir_path).mkdir(parents=True, exist_ok=True)
+        dataset_positive_df.to_csv(dir_path + '{}_positive.csv'.format(data_type))
         if dataset_undefined_df is not None:
-            dataset_undefined_df.to_csv(general_utilities.DATASETS_PATH + '{}_undefined.csv'.format(data_type))
+            dataset_undefined_df.to_csv(dir_path + '{}_undefined.csv'.format(data_type))
 
     return dataset_positive_df, dataset_undefined_df
 
 
 def create_negatives(experiment_df, cas_offinder_optional_offtargets_path=general_utilities.DATASETS_PATH +
-                     "output_file_pam_change.txt", data_type="CHANGEseq", save_sets=False):
+                     "output_file_pam_change.txt", data_type="CHANGEseq", save_sets=False,
+                     exclude_on_targets=True):
     """
     create negative set
     """
@@ -112,26 +118,31 @@ def create_negatives(experiment_df, cas_offinder_optional_offtargets_path=genera
     print("number of optional off targets after this stage: ", len(negative_df))
 
     if save_sets:
-        negative_df.to_csv(general_utilities.DATASETS_PATH + '{}_negative.csv'.format(data_type))
+        dir_path = general_utilities.DATASETS_PATH
+        dir_path += 'exclude_on_targets/' if exclude_on_targets else 'include_on_targets/'
+        Path(dir_path).mkdir(parents=True, exist_ok=True)
+        negative_df.to_csv(dir_path + '{}_negative.csv'.format(data_type))
 
     return negative_df
 
 
 if __name__ == '__main__':
-    print("create CHANGE-seq dataset")
-    create_positives(dataset_excel_path=general_utilities.CHANGE_SEQ_PATH, data_type="CHANGEseq",
-                     read_threshold=100, exclude_on_targets=True, save_sets=True)
-    change_seq_df = pd.read_excel(general_utilities.CHANGE_SEQ_PATH)
-    #drop off targets that contains '-'
-    change_seq_df = change_seq_df[change_seq_df["offtarget_sequence"].str.find('-')==-1]
-    create_negatives(change_seq_df, cas_offinder_optional_offtargets_path=general_utilities.DATASETS_PATH +
-                     "output_file_pam_change.txt", data_type="CHANGEseq", save_sets=True)
+    # print("create CHANGE-seq dataset")
+    # create_positives(dataset_excel_path=general_utilities.CHANGE_SEQ_PATH, data_type="CHANGEseq",
+    #                  read_threshold=100, exclude_on_targets=False, save_sets=True)
+    # change_seq_df = pd.read_excel(general_utilities.CHANGE_SEQ_PATH)
+    # #drop off targets that contains '-'
+    # change_seq_df = change_seq_df[change_seq_df["offtarget_sequence"].str.len()==23]
+    # change_seq_df = change_seq_df[change_seq_df["offtarget_sequence"].str.find('-')==-1]
+    # create_negatives(change_seq_df, cas_offinder_optional_offtargets_path=general_utilities.DATASETS_PATH +
+    #                  "output_file_pam_change.txt", data_type="CHANGEseq", save_sets=True, exclude_on_targets=False)
 
     print("create GUIDE-seq dataset")
     create_positives(dataset_excel_path=general_utilities.GUIDE_SEQ_PATH, data_type="GUIDEseq",
-                     read_threshold=None, exclude_on_targets=True, save_sets=True)
+                     read_threshold=None, exclude_on_targets=False, save_sets=True)
     guide_seq_df = pd.read_excel(general_utilities.GUIDE_SEQ_PATH)
-    #drop off targets that contains '-'
+    #drop off targets that contains '-' and ith len not equal to 23
+    guide_seq_df = guide_seq_df[guide_seq_df["offtarget_sequence"].str.len()==23]
     guide_seq_df = guide_seq_df[guide_seq_df["offtarget_sequence"].str.find('-')==-1]
     create_negatives(guide_seq_df, cas_offinder_optional_offtargets_path=general_utilities.DATASETS_PATH +
-                     "output_file_pam_change.txt",  data_type="GUIDEseq", save_sets=True)
+                     "output_file_pam_change.txt",  data_type="GUIDEseq", save_sets=True, exclude_on_targets=False)

@@ -225,7 +225,7 @@ def model_folds_predictions(positive_df, negative_df, targets, nucleotides_to_po
 def test(positive_df, negative_df, targets, nucleotides_to_position_mapping, dataset_type="CHANGEseq",
          model_type="classifier", k_fold_number=10, include_distance_feature=False, include_sequence_features=True,
          balanced=True, trans_type="ln_x_plus_one_trans", evaluate_only_distance=None, gpu=True, suffix_add="",
-         transformer=None, path_prefix=""):
+         transformer=None, models_path_prefix="", results_path_prefix=""):
     """
     the test function
     """
@@ -242,7 +242,7 @@ def test(positive_df, negative_df, targets, nucleotides_to_position_mapping, dat
                                                                negative_df, balanced=False,
                                                                evaluate_only_distance=evaluate_only_distance)
         model = load_model(model_type, k_fold_number, i, gpu, trans_type, balanced,
-                           include_distance_feature, include_sequence_features, path_prefix)
+                           include_distance_feature, include_sequence_features, models_path_prefix)
         for target in target_fold:
             if target in positive_df["target"].unique():
                 # #############load target data####################
@@ -396,7 +396,7 @@ def test(positive_df, negative_df, targets, nucleotides_to_position_mapping, dat
     suffix = suffix + ("" if evaluate_only_distance is None else "_distance_" + str(evaluate_only_distance))
     suffix = suffix + suffix_add
     dir_path = general_utilities.FILES_DIR + "models_" + str(k_fold_number) +\
-        "fold/" + path_prefix + dataset_type + "_" + model_type +\
+        "fold/" + results_path_prefix + dataset_type + "_" + model_type +\
         "_results_xgb_model_all_" + str(k_fold_number) + "_folds" + suffix + ".csv"
     Path(dir_path).parent.mkdir(parents=True, exist_ok=True)
     results_df.to_csv(dir_path)

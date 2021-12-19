@@ -12,28 +12,49 @@ from SysEvalOffTarget_src import general_utilities
 
 random.seed(general_utilities.SEED)
 
-
-def order_targets(data_type='CHANGE'):
+def load_order_sg_rnas(data_type='CHANGE'):
     """
-    Return the sgRNAs in certain order
+    load and return the sgRNAs in certain order for the k-fold training
     """
-    positive_df = pd.read_csv(
-        general_utilities.DATASETS_PATH+data_type+'seq_positive.csv', index_col=0)
+    data_type = 'CHANGE' if data_type.lower() in ('changeseq', 'change-seq', 'change_seq') else data_type
+    data_type = 'GUIDE' if data_type.lower() in ('guideseq', 'guide-seq', 'guide_seq') else data_type
+    sg_rnas_s = pd.read_csv(general_utilities.DATASETS_PATH+data_type+'-seq_sgRNAs_ordering.csv',
+                            header=None, squeeze=True)
+    return list(sg_rnas_s)
 
-    targets = positive_df["target"].unique()
-    random.shuffle(targets)
+def order_sg_rnas(data_type='CHANGE'):
+    """
+    Create and return the sgRNAs in certain order for the k-fold training
+    """
+    data_type = 'CHANGE' if data_type.lower() in ('changeseq', 'change-seq', 'change_seq') else data_type
+    data_type = 'GUIDE' if data_type.lower() in ('guideseq', 'guide-seq', 'guide_seq') else data_type
+    dataset_df = pd.read_excel(
+        general_utilities.DATASETS_PATH+data_type+'-seq.xlsx', index_col=0)
+    sg_rnas = list(dataset_df["target"].unique())
+    print("There are", len(sg_rnas), "unique sgRNAs in the", data_type, "dataset")
 
-    return targets
+    # sort the sgRNAs and shuffle them
+    sg_rnas.sort()
+    random.shuffle(sg_rnas)
+
+    #save the sgRNAs order into csv file
+    sg_rnas_s = pd.Series(sg_rnas)
+    # to csv - you can read this to Series using -
+    # pd.read_csv("file_name.csv", header=None, squeeze=True)
+    sg_rnas_s.to_csv(general_utilities.DATASETS_PATH+data_type+'-seq_sgRNAs_ordering.csv',
+                     header=False, index=False)
+
+    return sg_rnas
 
 
-def create_nucleotides_to_position_mapping():
+def create_nucleotides_to_position_mapping_old():
     """
     Return the nucleotides to position mapping
     """
     # matrix positions for ('A','A'), ('A','C'),...
     # tuples of ('A','A'), ('A','C'),...
     nucleotides_product = list(itertools.product(*(['ACGT'] * 2)))
-    # tuple of (0,0), (0,1), ...
+    # tuples of (0,0), (0,1), ...
     position_product = [(int(x[0]), int(x[1]))
                         for x in list(itertools.product(*(['0123'] * 2)))]
     nucleotides_to_position_mapping = dict(
@@ -42,6 +63,7 @@ def create_nucleotides_to_position_mapping():
     # tuples of ('N','A'), ('N','C'),...
     n_mapping_nucleotides_list = [('N', char) for char in ['A', 'C', 'G', 'T']]
     # list of position tuples corresponding to ('N','A'), ('N','C'),...
+    # meaning list of tuples of ([0, 1, 2, 3], [0, 0, 0, 0]), ([0, 1, 2, 3], [1, 1, 1, 1]), ...
     n_mapping_position_list = [([nucleotides_to_position_mapping[(N, char)][0]
                                  for N in ['A', 'C', 'G', 'T']],
                                 [nucleotides_to_position_mapping[(N, char)][1]
@@ -54,10 +76,43 @@ def create_nucleotides_to_position_mapping():
     # tuples of ('A','N'), ('C','N'),...
     n_mapping_nucleotides_list = [(char, 'N') for char in ['A', 'C', 'G', 'T']]
     # list of tuples positions corresponding to ('A','N'), ('C','N'),...
+    # meaning list of tuples of ([0, 0, 0, 0], [0, 1, 2, 3]), ([1, 1, 1, 1], [0, 1, 2, 3]), ...
     n_mapping_position_list = [([nucleotides_to_position_mapping[(char, N)][0]
                                  for N in ['A', 'C', 'G', 'T']],
                                 [nucleotides_to_position_mapping[(char, N)][1]
                                  for N in ['A', 'C', 'G', 'T']])
+                               for char in ['A', 'C', 'G', 'T']]
+    nucleotides_to_position_mapping.update(
+        dict(zip(n_mapping_nucleotides_list, n_mapping_position_list)))
+
+    return nucleotides_to_position_mapping
+
+def create_nucleotides_to_position_mapping():
+    """
+    Return the nucleotides to position mapping
+    """
+    # matrix positions for ('A','A'), ('A','C'),...
+    # tuples of ('A','A'), ('A','C'),...
+    nucleotides_product = list(itertools.product(*(['ACGT'] * 2)))
+    # tuples of (0,0), (0,1), ...
+    position_product = [(int(x[0]), int(x[1]))
+                        for x in list(itertools.product(*(['0123'] * 2)))]
+    nucleotides_to_position_mapping = dict(
+        zip(nucleotides_product, position_product))
+
+    # tuples of ('N','A'), ('N','C'),...
+    n_mapping_nucleotides_list = [('N', char) for char in ['A', 'C', 'G', 'T']]
+    # list of tuples positions coresponding to ('A','A'), ('C','C'), ...
+    n_mapping_position_list = [nucleotides_to_position_mapping[(char, char)]
+                               for char in ['A', 'C', 'G', 'T']]
+
+    nucleotides_to_position_mapping.update(
+        dict(zip(n_mapping_nucleotides_list, n_mapping_position_list)))
+
+    # tuples of ('A','N'), ('C','N'),...
+    n_mapping_nucleotides_list = [(char, 'N') for char in ['A', 'C', 'G', 'T']]
+    # list of tuples positions coresponding to ('A','A'), ('C','C'), ...
+    n_mapping_position_list = [nucleotides_to_position_mapping[(char, char)]
                                for char in ['A', 'C', 'G', 'T']]
     nucleotides_to_position_mapping.update(
         dict(zip(n_mapping_nucleotides_list, n_mapping_position_list)))
@@ -74,6 +129,11 @@ def build_sequence_features(dataset_df, nucleotides_to_position_mapping,
     if (not include_distance_feature) and (not include_sequence_features):
         raise ValueError(
             'include_distance_feature and include_sequence_features can not be both False')
+
+    #convert dataset_df["target"] -3 position to 'N'
+    print("Converting the [-3] positions in each sgRNA sequence to 'N'")
+    dataset_df['target'] = dataset_df['target'].apply(lambda s: s[:-3] + 'N' + s[-2:])
+
     if include_sequence_features:
         final_result = np.zeros((len(dataset_df), (23*16)+1),
                                 dtype=np.int8) if include_distance_feature else \
