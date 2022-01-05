@@ -3,6 +3,8 @@
 """
 
 import random
+import time
+
 from pathlib import Path
 import xgboost as xgb
 import numpy as np
@@ -20,7 +22,7 @@ def train(positive_df, negative_df, targets, nucleotides_to_position_mapping,
           data_type='CHANGEseq', model_type="classifier", k_fold_number=10,
           include_distance_feature=False, include_sequence_features=True,
           balanced=True, trans_type="ln_x_plus_one_trans", skip_num_folds=0,
-          path_prefix="", xgb_model=None, transfer_learning_type="add"):
+          path_prefix="", xgb_model=None, transfer_learning_type="add", save_model=True):
     """
     The train function
     """
@@ -108,9 +110,11 @@ def train(positive_df, negative_df, targets, nucleotides_to_position_mapping,
                                       nthread=100,
                                       **transfer_learning_args)  # tree_method='gpu_hist'
 
-            print(sequence_features_train.shape)
+            start = time.time()
             model.fit(sequence_features_train, sequence_class_train,
                       sample_weight=build_sampleweight(sequence_class_train), xgb_model=xgb_model)
+            end = time.time()
+            print("************** training time:", end - start, "**************")
         else:
             model = xgb.XGBRegressor(max_depth=10,
                                      learning_rate=0.1,
@@ -118,6 +122,7 @@ def train(positive_df, negative_df, targets, nucleotides_to_position_mapping,
                                      nthread=100,
                                      **transfer_learning_args)  # tree_method='gpu_hist'
 
+            start = time.time()
             if model_type == "regression_with_negatives":
                 model.fit(sequence_features_train, sequence_labels_train,
                           sample_weight=build_sampleweight(sequence_class_train),
@@ -125,15 +130,20 @@ def train(positive_df, negative_df, targets, nucleotides_to_position_mapping,
             else:
                 model.fit(sequence_features_train,
                           sequence_labels_train, xgb_model=xgb_model)
+            end = time.time()
+            print("************** training time:", end - start, "**************")
 
-        suffix = "_with_distance" if include_distance_feature else ""
-        suffix = suffix + "" if include_sequence_features else "_without_sequence_features"
-        suffix = suffix + ("_without_Kfold" if k_fold_number == 1 else "")
-        suffix = suffix + ("" if balanced == 1 else "_imbalanced")
-        if trans_type != "ln_x_plus_one_trans" and model_type != "classifier":
-            suffix = suffix + "_"+trans_type
-        dir_path = general_utilities.FILES_DIR + "models_" + \
-            str(k_fold_number) + "fold/" + path_prefix + model_type + \
-            "_xgb_model_fold_" + str(i+skip_num_folds) + suffix + ".xgb"
-        Path(dir_path).parent.mkdir(parents=True, exist_ok=True)
-        model.save_model(dir_path)
+        if save_model:
+            suffix = "_with_distance" if include_distance_feature else ""
+            suffix = suffix + "" if include_sequence_features else "_without_sequence_features"
+            suffix = suffix + ("_without_Kfold" if k_fold_number == 1 else "")
+            suffix = suffix + ("" if balanced == 1 else "_imbalanced")
+            if trans_type != "ln_x_plus_one_trans" and model_type != "classifier":
+                suffix = suffix + "_"+trans_type
+            dir_path = general_utilities.FILES_DIR + "models_" + \
+                str(k_fold_number) + "fold/" + path_prefix + model_type + \
+                "_xgb_model_fold_" + str(i+skip_num_folds) + suffix + ".xgb"
+            Path(dir_path).parent.mkdir(parents=True, exist_ok=True)
+            model.save_model(dir_path)
+
+        return model

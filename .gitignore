@@ -52,3 +52,14 @@ files/datasets/include_on_targets/CHANGEseq_positive.csv
 files/datasets/include_on_targets/GUIDEseq_negative.csv
 files/datasets/include_on_targets/CHANGEseq_undefined.csv
 files/datasets/include_on_targets/GUIDEseq_positive.csv
+timing.log
+
+files/outputs_spearman
+files/datasets/include_on_targets/CHANGE_GUIDE_intersection.csv
+files/datasets/include_on_targets/CHANGE_GUIDE_intersection_by_GUIDE_positive.csv
+files/datasets/include_on_targets/CHANGE_GUIDE_intersection_by_GUIDE_negative.csv
+files/datasets/include_on_targets/CHANGE_GUIDE_intersection_by_both_positive.csv
+files/datasets/include_on_targets/CHANGE_GUIDE_intersection_by_both_negative.csv
+tl_plots.py
+plots_final_pearson.py
+plots_final_spearman.py

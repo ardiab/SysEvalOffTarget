@@ -7,7 +7,7 @@ import xgboost as xgb
 import pandas as pd
 import numpy as np
 
-from scipy.stats.stats import pearsonr
+from scipy.stats.stats import pearsonr, spearmanr
 from sklearn.metrics import average_precision_score, precision_score, recall_score, roc_auc_score
 from SysEvalOffTarget_src import utilities
 
@@ -22,6 +22,7 @@ def score_function_classifier(y_test, y_pred, y_proba):
     compute scores for classification model
     """
     pearson = pearsonr(y_test, y_proba)[0]
+    spearman = spearmanr(y_test, y_proba)[0]
     auc = roc_auc_score(y_test, y_proba)
     aupr = average_precision_score(y_test, y_proba)
     precision = precision_score(y_test, y_pred)
@@ -29,7 +30,8 @@ def score_function_classifier(y_test, y_pred, y_proba):
     accuracy = (np.sum(y_test == y_pred) * 1.0 / len(y_test))
 
     return {"accuracy": accuracy, "auc": auc, "aupr": aupr,
-            "precision": precision, "recall": recall, "pearson": pearson}
+            "precision": precision, "recall": recall,
+            "pearson": pearson, "spearman":spearman}
 
 
 def score_function_reg_classifier(y_test, y_proba):
@@ -37,10 +39,12 @@ def score_function_reg_classifier(y_test, y_proba):
     compute scores for regression model
     """
     pearson = pearsonr(y_test, y_proba)[0]
+    spearman = spearmanr(y_test, y_proba)[0]
     auc = roc_auc_score(y_test, y_proba)
     aupr = average_precision_score(y_test, y_proba)
 
-    return {"reg_to_class_auc": auc, "reg_to_class_aupr": aupr, "reg_to_class_pearson": pearson}
+    return {"reg_to_class_auc": auc, "reg_to_class_aupr": aupr,
+            "reg_to_class_pearson": pearson, "reg_to_class_spearman": spearman}
 
 
 ############################################################################
@@ -98,12 +102,15 @@ def create_scores_dataframe(model_type):
     if model_type == "classifier":
         results_df = pd.DataFrame(columns=["target", "positives", "negatives", "accuracy", "auc",
                                            "aupr", "precision", "recall", "pearson",
-                                           "pearson_reads_to_proba_for_positive_set"])
+                                           "pearson_reads_to_proba_for_positive_set",
+                                           "spearman", "spearman_reads_to_proba_for_positive_set"])
     elif model_type == "regression_with_negatives" or model_type == 'regression_without_negatives':
         results_df = pd.DataFrame(
             columns=["target", "positives", "negatives", "pearson", "pearson_after_inv_trans", "pearson_only_positives",
-                     "pearson_only_positives_after_inv_trans", "reg_to_class_auc", "reg_to_class_aupr",
-                     "reg_to_class_pearson"])
+                     "pearson_only_positives_after_inv_trans", "spearman", "spearman_after_inv_trans",
+                     "spearman_only_positives", "spearman_only_positives_after_inv_trans",
+                     "reg_to_class_auc", "reg_to_class_aupr",
+                     "reg_to_class_pearson", "reg_to_class_spearman"])
     else:
         raise ValueError('model_type is invalid.')
 
@@ -270,10 +277,17 @@ def test(positive_df, negative_df, targets, nucleotides_to_position_mapping, dat
                     positive_sequence_labels_predicted_proba = model.predict_proba(
                         positive_sequence_features_test)[:, 1]
                     if len(positive_sequence_labels_predicted_proba) > 1:
+                        # pearson
                         target_scores.update({"pearson_reads_to_proba_for_positive_set": pearsonr(
                             positive_reads_test, positive_sequence_labels_predicted_proba)[0]})
+                        # spearman
+                        target_scores.update({"spearman_reads_to_proba_for_positive_set": spearmanr(
+                            positive_reads_test, positive_sequence_labels_predicted_proba)[0]})
                     else:
+                        # pearson
                         target_scores.update({"pearson_reads_to_proba_for_positive_set": np.nan})
+                        # spearman
+                        target_scores.update({"spearman_reads_to_proba_for_positive_set": np.nan})
 
                     true_labels_list.append(sequence_labels_test)
                     predicted_labels_list.append(sequence_labels_predicted)
@@ -284,6 +298,7 @@ def test(positive_df, negative_df, targets, nucleotides_to_position_mapping, dat
                     sequence_reads_predicted = model.predict(
                         sequence_features_test)
                     if len(sequence_reads_predicted) > 1:
+                        # pearson
                         target_scores = {"pearson": pearsonr(
                             sequence_reads_test, sequence_reads_predicted)[0]}
                         target_scores.update({"pearson_after_inv_trans": pearsonr(
@@ -291,15 +306,29 @@ def test(positive_df, negative_df, targets, nucleotides_to_position_mapping, dat
                                        inverse=True), data_trans(
                                 data=sequence_reads_predicted, trans_type=trans_type, transformer=transformer,
                                 inverse=True))[0]})
+                        # spearman
+                        target_scores.update({"spearman": spearmanr(
+                            sequence_reads_test, sequence_reads_predicted)[0]})
+                        target_scores.update({"spearman_after_inv_trans": spearmanr(
+                            data_trans(data=sequence_reads_test, trans_type=trans_type, transformer=transformer,
+                                       inverse=True), data_trans(
+                                data=sequence_reads_predicted, trans_type=trans_type, transformer=transformer,
+                                inverse=True))[0]})
                     else:
+                        # pearson
                         target_scores = {"pearson": np.nan}
                         target_scores.update(
                             {"pearson_after_inv_trans": np.nan})
+                        # spearman
+                        target_scores.update({"spearman": np.nan})
+                        target_scores.update(
+                            {"spearman_after_inv_trans": np.nan})
                     # test corr only on the positive set
                     positive_sequence_reads_predicted = model.predict(
                         positive_sequence_features_test)
                     if len(positive_sequence_reads_predicted) > 1:
                         # positive_reads_test is before the transformation
+                        # pearson
                         target_scores.update({"pearson_only_positives": pearsonr(data_trans(data=positive_reads_test,
                                                                                             trans_type=trans_type,
                                                                                             transformer=transformer),
@@ -308,11 +337,26 @@ def test(positive_df, negative_df, targets, nucleotides_to_position_mapping, dat
                             {"pearson_only_positives_after_inv_trans": pearsonr(positive_reads_test, data_trans(
                                 data=positive_sequence_reads_predicted, trans_type=trans_type, transformer=transformer,
                                 inverse=True))[0]})
+                        # spearman
+                        target_scores.update({"spearman_only_positives": spearmanr(data_trans(data=positive_reads_test,
+                                                                                            trans_type=trans_type,
+                                                                                            transformer=transformer),
+                                                                                 positive_sequence_reads_predicted)[0]})
+                        target_scores.update(
+                            {"spearman_only_positives_after_inv_trans": spearmanr(positive_reads_test, data_trans(
+                                data=positive_sequence_reads_predicted, trans_type=trans_type, transformer=transformer,
+                                inverse=True))[0]})
                     else:
+                        # pearson
                         target_scores.update(
                             {"pearson_only_positives": np.nan})
                         target_scores.update(
                             {"pearson_only_positives_after_inv_trans": np.nan})
+                        # spearman
+                        target_scores.update(
+                            {"spearman_only_positives": np.nan})
+                        target_scores.update(
+                            {"spearman_only_positives_after_inv_trans": np.nan})
                     # test if regressor can perform off-target classification
                     normalized_sequence_reads_predicted = (sequence_reads_predicted - np.min(
                         sequence_reads_predicted)) / (np.max(sequence_reads_predicted) -
@@ -349,8 +393,11 @@ def test(positive_df, negative_df, targets, nucleotides_to_position_mapping, dat
 
         all_targets_scores = score_function_classifier(
             true_labels_all_targets, predicted_labels_all_targets, predicted_labels_proba_all_targets)
-
+        # pearson
         all_targets_scores.update({"pearson_reads_to_proba_for_positive_set": pearsonr(
+            positive_true_reads_all_targets, positive_prediction_proba_all_targets)[0]})
+        # spearman
+        all_targets_scores.update({"spearman_reads_to_proba_for_positive_set": spearmanr(
             positive_true_reads_all_targets, positive_prediction_proba_all_targets)[0]})
     else:
         predicted_reads_all_targets = np.concatenate(predicted_reads_list)
@@ -361,6 +408,7 @@ def test(positive_df, negative_df, targets, nucleotides_to_position_mapping, dat
             positive_true_reads_list)
         true_labels_all_targets = np.concatenate(true_labels_list)
 
+        # pearson
         all_targets_scores = {"pearson": pearsonr(
             true_reads_all_targets, predicted_reads_all_targets)[0]}
         all_targets_scores.update({"pearson_after_inv_trans": pearsonr(
@@ -375,6 +423,23 @@ def test(positive_df, negative_df, targets, nucleotides_to_position_mapping, dat
                 0]})  # positive_true_reads_all_targets is before the transformation
         all_targets_scores.update(
             {"pearson_only_positives_after_inv_trans": pearsonr(positive_true_reads_all_targets, data_trans(
+                data=positive_predicted_reads_all_targets, trans_type=trans_type, transformer=transformer,
+                inverse=True))[0]})
+        # spearman
+        all_targets_scores.update({"spearman": spearmanr(
+            true_reads_all_targets, predicted_reads_all_targets)[0]})
+        all_targets_scores.update({"spearman_after_inv_trans": spearmanr(
+            data_trans(data=true_reads_all_targets, trans_type=trans_type, transformer=transformer,
+                       inverse=True),
+            data_trans(data=predicted_reads_all_targets, trans_type=trans_type, transformer=transformer, inverse=True))[
+            0]})
+        all_targets_scores.update(
+            {"spearman_only_positives": spearmanr(data_trans(data=positive_true_reads_all_targets, trans_type=trans_type,
+                                                           transformer=transformer),
+                                                positive_predicted_reads_all_targets)[
+                0]})  # positive_true_reads_all_targets is before the transformation
+        all_targets_scores.update(
+            {"spearman_only_positives_after_inv_trans": spearmanr(positive_true_reads_all_targets, data_trans(
                 data=positive_predicted_reads_all_targets, trans_type=trans_type, transformer=transformer,
                 inverse=True))[0]})
 
