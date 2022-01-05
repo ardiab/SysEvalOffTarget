@@ -1,12 +1,37 @@
 # SysEvalOffTarget
 
-The full code will be uploaded soon.
+The code developed for the preprint manuscript:
+[A systematic evaluation of data processing and problem formulation of CRISPR off-target site prediction](https://www.biorxiv.org/content/10.1101/2021.09.30.462534v1.abstract)
 
+The code contains multiple options of training and testing models, including a transfer learning model for CHANGE-seq to GUIDE-seq. 
 
-The code contains main functions used in our anlysis. 
+# Usage
+Once you have cloned this repository and installed all the requirements, you should execute 
+```
+python prepare_data.py
+```
+to generate the dataset that will be used in the training and testing stages.
 
-Please uzip the dataset files before the use.
+To train the models, you should execute
+```
+python main_train.py
+```
+This will train some examples models. You can modify the `main_train.py` to run all the possible options we have formed.
 
-The manuscript preprint is available at:
+Once you trained your models. you can evaluate the prefoamce of the models by executing
+```
+python main_test.py
+```
+In the current form, `main_test.py` will evaluate the example models and save the prediction performance tables located in files. To evaluate other models variants, please modidy `main_test.py` accordingly.
 
-[A systematic evaluation of data processing and problem formulation of CRISPR off-target site prediction](https://www.biorxiv.org/content/10.1101/2021.09.30.462534v1)
+# Requirements:
+The code was tested with:\
+Python interpreter == 3.6.6\
+Python packages required (other versions may work as well):\
+   numpy == 1.18.5\
+   pandas == 1.1.2\
+   biopython==1.78\
+   scikit-learn == 0.23.0\
+   xgboost==1.3.3\
+
+Note: There might be other packages needed. Please contact us in case of any problem.
