@@ -32,6 +32,6 @@ Python packages required (other versions may work as well):\
    pandas == 1.1.2\
    biopython==1.78\
    scikit-learn == 0.23.0\
-   xgboost==1.3.3\
+   xgboost==1.3.3
 
 Note: There might be other packages needed. Please contact us in case of any problem.
