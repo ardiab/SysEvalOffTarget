@@ -1,18 +1,26 @@
 """
-# To add a new cell, type '# %%'
-# To add a new markdown cell, type '# %% [markdown]'
+Generates the datasets for training and testing the models
 """
 
-# %%
 from pathlib import Path
 import pandas as pd
 from Bio.Seq import Seq
 from SysEvalOffTarget_src import general_utilities
 
 
-# %%
 def create_positives(dataset_excel_path=general_utilities.CHANGE_SEQ_PATH, data_type="CHANGEseq",
-                     read_threshold=None, exclude_on_targets=True, save_sets=False):
+                     read_threshold=None, exclude_on_targets=False, save_sets=False):
+    """
+    Generates the positive set of the CHANGE-seq or GUIDE-seq according the requested parameters.
+    :param dataset_excel_path: the Path the samples before any filtering.
+    :param data_type: str. The type of the dataset that the positive set is crated for.
+    :param read_threshold: int or None. The read count threshold for filtering. samples with lower will be filtered.
+        if None, no filtering is applied. Usually read_threshold=100. Default: None
+    :param exclude_on_targets: bool. exclude the on-targets from the positive set in case of True. Default: False
+    :param save_sets: bool. Save the positive set generated in case of True. Otherwise, return the table as DataFrame.
+        Default: True
+    :return: DataFrame. The positive set that was generated.
+    """
     """
     create the positive set
     """
@@ -56,9 +64,20 @@ def create_positives(dataset_excel_path=general_utilities.CHANGE_SEQ_PATH, data_
 
 def create_negatives(experiment_df, cas_offinder_optional_offtargets_path=general_utilities.DATASETS_PATH +
                      "output_file_pam_change.txt", data_type="CHANGEseq", save_sets=False,
-                     exclude_on_targets=True):
+                     exclude_on_targets=False):
     """
-    create negative set
+    Generates the negative set of the CHANGE-seq or GUIDE-seq according the requested parameters.
+    :param experiment_df: DataFrame. the Dataframe that contains the samples as we obtained from the experiment (e.g.,
+        without any filtering).
+    :param cas_offinder_optional_offtargets_path: str. The path to table that contains all the options off-targets
+        obtained by CAS-OFFinder.
+    :param data_type: str. The type of the dataset that the negative set is crated for.
+        Options: "CHANGEseq" or "GUIDEseq. Default: "CHANGEseq"
+    :param save_sets: bool. Save the negative set generated in case of True. Otherwise, return the table as DataFrame.
+        Default: True
+    :param exclude_on_targets: This argument just define where to save the dataset. The on-targets are always filtered
+        from the negative set. Default: False
+    :return: DataFrame. The negative set that was generated.
     """
     negative_df = pd.read_table(cas_offinder_optional_offtargets_path)
     negative_df['label'] = 0
@@ -126,7 +145,13 @@ def create_negatives(experiment_df, cas_offinder_optional_offtargets_path=genera
     return negative_df
 
 
-def intersection_ceration(exclude_on_targets=False):
+def intersection_creation(exclude_on_targets=False):
+    """
+    crate the intersection datasets of the CHANGE-seq and GUIDE-seq. we define the positive sample as the positives
+    in both datasets or in the GUIDE-seq (the code generate the two options).
+    :param exclude_on_targets: exclude the on-target from the intersection dataset in case of True. Default: False
+    :return: None
+    """
     dir_path = general_utilities.DATASETS_PATH
     dir_path += 'exclude_on_targets/' if exclude_on_targets else 'include_on_targets/'
 
@@ -150,17 +175,17 @@ def intersection_ceration(exclude_on_targets=False):
         [guide_seq_positives_df, guide_seq_negatives_df], ignore_index=True, sort=False)
     change_seq_df = pd.concat(
         [change_seq_positives_df, change_seq_negatives_df], ignore_index=True, sort=False)
-    #inner for intersection
+    # inner for intersection
     change_guide_intersection = pd.merge(
         change_seq_df, guide_seq_df, how='inner',
-        on=['chrom','chromStart', 'strand', 'offtarget_sequence', 'distance', 'target'],
-        suffixes=["_CHANGE", "_GUIDE"])
+        on=['chrom', 'chromStart', 'strand', 'offtarget_sequence', 'distance', 'target'],
+        suffixes=("_CHANGE", "_GUIDE"))
     change_guide_intersection.to_csv(dir_path + 'CHANGE_GUIDE_intersection.csv')
 
     change_guide_intersection_positives_by_guide = \
-        change_guide_intersection[change_guide_intersection['GUIDEseq_reads']>0]
+        change_guide_intersection[change_guide_intersection['GUIDEseq_reads'] > 0]
     change_guide_intersection_negatives_by_guide = \
-        change_guide_intersection[change_guide_intersection['GUIDEseq_reads']==0]
+        change_guide_intersection[change_guide_intersection['GUIDEseq_reads'] == 0]
     change_guide_intersection_positives_by_guide['label'] = 1
     change_guide_intersection_negatives_by_guide['label'] = 0
     change_guide_intersection_positives_by_guide.to_csv(
@@ -170,10 +195,10 @@ def intersection_ceration(exclude_on_targets=False):
     
     change_guide_intersection_positives_by_both = \
         change_guide_intersection[
-            (change_guide_intersection['GUIDEseq_reads']>0) & (change_guide_intersection['CHANGEseq_reads']>0)]
+            (change_guide_intersection['GUIDEseq_reads'] > 0) & (change_guide_intersection['CHANGEseq_reads'] > 0)]
     change_guide_intersection_negatives_by_both = \
         change_guide_intersection[
-            (change_guide_intersection['GUIDEseq_reads']==0) & (change_guide_intersection['CHANGEseq_reads']==0)]
+            (change_guide_intersection['GUIDEseq_reads'] == 0) & (change_guide_intersection['CHANGEseq_reads'] == 0)]
     change_guide_intersection_positives_by_both['label'] = 1
     change_guide_intersection_negatives_by_both['label'] = 0
     change_guide_intersection_positives_by_both.to_csv(
@@ -183,32 +208,36 @@ def intersection_ceration(exclude_on_targets=False):
 
 
 def main():
-    tasks = ["intersection"]
-    if "CHNAGE" in tasks:
+    """
+    main function
+    """
+    tasks = ["CHANGE", "intersection", "GUIDE"]
+    if "CHANGE" in tasks:
         print("create CHANGE-seq dataset")
         create_positives(dataset_excel_path=general_utilities.CHANGE_SEQ_PATH, data_type="CHANGEseq",
-                        read_threshold=100, exclude_on_targets=False, save_sets=True)
+                         read_threshold=100, exclude_on_targets=False, save_sets=True)
         change_seq_df = pd.read_excel(general_utilities.CHANGE_SEQ_PATH)
-        #drop off targets that contains '-'
-        change_seq_df = change_seq_df[change_seq_df["offtarget_sequence"].str.len()==23]
-        change_seq_df = change_seq_df[change_seq_df["offtarget_sequence"].str.find('-')==-1]
+        # drop off targets that contains '-'
+        change_seq_df = change_seq_df[change_seq_df["offtarget_sequence"].str.len() == 23]
+        change_seq_df = change_seq_df[change_seq_df["offtarget_sequence"].str.find('-') == -1]
         create_negatives(change_seq_df, cas_offinder_optional_offtargets_path=general_utilities.DATASETS_PATH +
-                        "output_file_pam_change.txt", data_type="CHANGEseq", save_sets=True, exclude_on_targets=False)
+                         "output_file_pam_change.txt", data_type="CHANGEseq", save_sets=True, exclude_on_targets=False)
 
     if "GUIDE" in tasks:
         print("create GUIDE-seq dataset")
         create_positives(dataset_excel_path=general_utilities.GUIDE_SEQ_PATH, data_type="GUIDEseq",
-                        read_threshold=None, exclude_on_targets=False, save_sets=True)
+                         read_threshold=None, exclude_on_targets=False, save_sets=True)
         guide_seq_df = pd.read_excel(general_utilities.GUIDE_SEQ_PATH)
-        #drop off targets that contains '-' and ith len not equal to 23
-        guide_seq_df = guide_seq_df[guide_seq_df["offtarget_sequence"].str.len()==23]
-        guide_seq_df = guide_seq_df[guide_seq_df["offtarget_sequence"].str.find('-')==-1]
+        # drop off targets that contains '-' and ith len not equal to 23
+        guide_seq_df = guide_seq_df[guide_seq_df["offtarget_sequence"].str.len() == 23]
+        guide_seq_df = guide_seq_df[guide_seq_df["offtarget_sequence"].str.find('-') == -1]
         create_negatives(guide_seq_df, cas_offinder_optional_offtargets_path=general_utilities.DATASETS_PATH +
-                        "output_file_pam_change.txt",  data_type="GUIDEseq", save_sets=True, exclude_on_targets=False)
+                         "output_file_pam_change.txt",  data_type="GUIDEseq", save_sets=True, exclude_on_targets=False)
 
     if "intersection" in tasks:
         print("create CHANGE-GUIDE intersection datasets")
-        intersection_ceration(exclude_on_targets=False)
+        intersection_creation(exclude_on_targets=False)
+
 
 if __name__ == '__main__':
     main()
