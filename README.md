@@ -6,11 +6,15 @@ The code developed for the preprint manuscript:
 The code contains multiple options of training and testing models, including a transfer learning model for CHANGE-seq to GUIDE-seq. 
 
 # Usage
-Once you have cloned this repository and installed all the requirements, you should execute 
+Once you have cloned this repository and installed all the requirements, unzip the potential off-target sites dataset located in:
+```
+files/datasets/output_file_pam_change.zip
+```
+Then, you should execute
 ```
 python prepare_data.py
 ```
-to generate the dataset that will be used in the training and testing stages.
+to generate the active and inactive datasets that will be used in the training and testing stages.
 
 To train the models, you should execute
 ```
