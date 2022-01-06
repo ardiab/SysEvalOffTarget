@@ -36,10 +36,7 @@ train_models_completions.log
 train_models_exclude_on.log
 train_models_include_on.log
 train_TL_models.log
-files/datasets/CHANGE-seq_sgRNAs_ordering.csv
-files/datasets/GUIDE-seq_sgRNAs_ordering.csv
 files/datasets/input_file_pam_change.txt
-files/datasets/output_file_pam_change_seq_rhAmpSeq_expriment.txt
 files/datasets/output_file_pam_change.txt
 files/datasets/exclude_on_targets/CHANGEseq_negative.csv
 files/datasets/exclude_on_targets/CHANGEseq_positive.csv
