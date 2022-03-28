@@ -21,9 +21,6 @@ def create_positives(dataset_excel_path=general_utilities.CHANGE_SEQ_PATH, data_
         Default: True
     :return: DataFrame. The positive set that was generated.
     """
-    """
-    create the positive set
-    """
     dataset_df = pd.read_excel(dataset_excel_path)
     # exclude bulges
     # drop off targets with len not equal to 23 and with '-'
@@ -72,7 +69,7 @@ def create_negatives(experiment_df, cas_offinder_optional_offtargets_path=genera
     :param cas_offinder_optional_offtargets_path: str. The path to table that contains all the options off-targets
         obtained by CAS-OFFinder.
     :param data_type: str. The type of the dataset that the negative set is crated for.
-        Options: "CHANGEseq" or "GUIDEseq. Default: "CHANGEseq"
+        Options: "CHANGEseq" or "GUIDEseq". Default: "CHANGEseq"
     :param save_sets: bool. Save the negative set generated in case of True. Otherwise, return the table as DataFrame.
         Default: True
     :param exclude_on_targets: This argument just define where to save the dataset. The on-targets are always filtered

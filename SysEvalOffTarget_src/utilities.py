@@ -6,11 +6,12 @@ import itertools
 import pandas as pd
 import numpy as np
 
-from sklearn.preprocessing import PowerTransformer
+from sklearn.preprocessing import PowerTransformer, FunctionTransformer, MaxAbsScaler, StandardScaler
 
 from SysEvalOffTarget_src import general_utilities
 
 random.seed(general_utilities.SEED)
+
 
 def load_order_sg_rnas(data_type='CHANGE'):
     """
@@ -22,6 +23,7 @@ def load_order_sg_rnas(data_type='CHANGE'):
                             header=None, squeeze=True)
     return list(sg_rnas_s)
 
+
 def order_sg_rnas(data_type='CHANGE'):
     """
     Create and return the sgRNAs in certain order for the k-fold training
@@ -29,7 +31,7 @@ def order_sg_rnas(data_type='CHANGE'):
     data_type = 'CHANGE' if data_type.lower() in ('changeseq', 'change-seq', 'change_seq') else data_type
     data_type = 'GUIDE' if data_type.lower() in ('guideseq', 'guide-seq', 'guide_seq') else data_type
     dataset_df = pd.read_excel(
-        general_utilities.DATASETS_PATH+data_type+'-seq.xlsx', index_col=0)
+        general_utilities.DATASETS_PATH + data_type + '-seq.xlsx', index_col=0)
     sg_rnas = list(dataset_df["target"].unique())
     print("There are", len(sg_rnas), "unique sgRNAs in the", data_type, "dataset")
 
@@ -37,7 +39,7 @@ def order_sg_rnas(data_type='CHANGE'):
     sg_rnas.sort()
     random.shuffle(sg_rnas)
 
-    #save the sgRNAs order into csv file
+    # save the sgRNAs order into csv file
     sg_rnas_s = pd.Series(sg_rnas)
     # to csv - you can read this to Series using -
     # pd.read_csv("file_name.csv", header=None, squeeze=True)
@@ -87,6 +89,7 @@ def create_nucleotides_to_position_mapping_old():
 
     return nucleotides_to_position_mapping
 
+
 def create_nucleotides_to_position_mapping():
     """
     Return the nucleotides to position mapping
@@ -102,7 +105,7 @@ def create_nucleotides_to_position_mapping():
 
     # tuples of ('N','A'), ('N','C'),...
     n_mapping_nucleotides_list = [('N', char) for char in ['A', 'C', 'G', 'T']]
-    # list of tuples positions coresponding to ('A','A'), ('C','C'), ...
+    # list of tuples positions corresponding to ('A','A'), ('C','C'), ...
     n_mapping_position_list = [nucleotides_to_position_mapping[(char, char)]
                                for char in ['A', 'C', 'G', 'T']]
 
@@ -111,7 +114,7 @@ def create_nucleotides_to_position_mapping():
 
     # tuples of ('A','N'), ('C','N'),...
     n_mapping_nucleotides_list = [(char, 'N') for char in ['A', 'C', 'G', 'T']]
-    # list of tuples positions coresponding to ('A','A'), ('C','C'), ...
+    # list of tuples positions corresponding to ('A','A'), ('C','C'), ...
     n_mapping_position_list = [nucleotides_to_position_mapping[(char, char)]
                                for char in ['A', 'C', 'G', 'T']]
     nucleotides_to_position_mapping.update(
@@ -130,7 +133,7 @@ def build_sequence_features(dataset_df, nucleotides_to_position_mapping,
         raise ValueError(
             'include_distance_feature and include_sequence_features can not be both False')
 
-    #convert dataset_df["target"] -3 position to 'N'
+    # convert dataset_df["target"] -3 position to 'N'
     print("Converting the [-3] positions in each sgRNA sequence to 'N'")
     dataset_df['target'] = dataset_df['target'].apply(lambda s: s[:-3] + 'N' + s[-2:])
 
@@ -163,12 +166,22 @@ def build_sequence_features(dataset_df, nucleotides_to_position_mapping,
 ##########################################################################
 
 
-def create_fold_sets(target_fold, targets, positive_df, negative_df, balanced=True):
+def create_fold_sets(target_fold, targets, positive_df, negative_df,
+                     balanced, exclude_targets_without_positives):
     """
     Create fold sets for train/test
+    remove_targets_without_positives: only from the train test.
+        It doesn't matter in the test set, as we can't evaluate the performance when evaluating per sgRNA.
+        Moreover, we can always remove them in the evaluation stage.
     """
     test_targets = target_fold
-    train_targets = [x for x in targets if x not in target_fold]
+    train_targets = [target for target in targets if target not in target_fold]
+    if exclude_targets_without_positives:
+        for target in train_targets.copy():
+            if len(positive_df[positive_df["target"] == target]) == 0:
+                print("removing target:", target, "from training set, since it has no positives")
+                train_targets.remove(target)
+
     positive_df_test = positive_df[positive_df['target'].isin(test_targets)]
     positive_df_train = positive_df[positive_df['target'].isin(train_targets)]
 
@@ -213,82 +226,214 @@ def build_sampleweight(y_values):
         vec[y_values == values_class] = np.sum(
             y_values != values_class) / len(y_values)
     return vec
-
 ##########################################################################
-def extract_model_name(model_type="classifier", include_distance_feature=False,
-                       include_sequence_features=True, balanced=True,
-                       trans_type="ln_x_plus_one_trans"):
+
+
+def extract_model_name(model_type, include_distance_feature, include_sequence_features, balanced, trans_type,
+                       trans_all_fold, trans_only_positive, exclude_targets_without_positives):
     """
     extract model name
     """
-    model_name = "Classification" if model_type ==  "classifier" else "Regression"
-    model_name += "-no-negtives" if  model_type ==  "regression_without_negatives" else ""
+    model_name = "Classification" if model_type == "classifier" else "Regression"
+    model_name += "-no-negatives" if model_type == "regression_without_negatives" else ""
     model_name += "-seq" if include_sequence_features else ""
     model_name += "-dist" if include_distance_feature else ""
-    model_name += "-noTrans" if trans_type == "no_trans" else ""
-    model_name += "-balanced" if balanced else ""
-
+    model_name += "-positiveSgRNAs" if exclude_targets_without_positives else ""
+    if model_type != "classifier":
+        model_name += "-noTrans" if trans_type == "no_trans" else ""
+        model_name += "-log1pMaxTrans" if trans_type == "ln_x_plus_one_and_max_trans" else ""
+        model_name += "-maxTrans" if trans_type == "max_trans" else ""
+        model_name += "-standardTrans" if trans_type == "standard_trans" else ""
+        model_name += "-boxTrans" if trans_type == "box_cox_trans" else ""
+        model_name += "-yeoTrans" if trans_type == "yeo_johnson_trans" else ""
+        model_name += "-balanced" if balanced else ""
+        model_name += "-foldTrans" if trans_all_fold else ""
+        model_name += "-positiveTrans" if trans_only_positive else ""
+    
     return model_name
-
 ##########################################################################
 
 
-def create_transformer(positive_df, negative_df, trans_type, model_type, data_type='CHANGEseq'):
+def prefix_and_suffix_path(model_type, k_fold_number, include_distance_feature, include_sequence_features, balanced,
+                           trans_type, trans_all_fold, trans_only_positive, exclude_targets_without_positives,
+                           path_prefix):
+    suffix = "_with_distance" if include_distance_feature else ""
+    suffix += "" if include_sequence_features else "_without_sequence_features"
+    suffix += ("_without_Kfold" if k_fold_number == 1 else "")
+    suffix += ("" if balanced == 1 else "_imbalanced")
+    if trans_type != "ln_x_plus_one_trans" and model_type != "classifier":
+        suffix += "_" + trans_type
+    path_prefix = "trans_only_positive/" + path_prefix if trans_only_positive else path_prefix
+    path_prefix = "trans_on_entire_train_or_test_fold/" + path_prefix if trans_all_fold else path_prefix
+    path_prefix = "drop_sg_rna_with_non_positives/" + path_prefix if exclude_targets_without_positives else path_prefix
+
+    return path_prefix, suffix
+
+
+def extract_model_path(model_type, k_fold_number, include_distance_feature, include_sequence_features,
+                       balanced, trans_type, trans_all_fold, trans_only_positive, exclude_targets_without_positives,
+                       fold_index, path_prefix):
+    """
+    extract model path
+    """
+    path_prefix, suffix = prefix_and_suffix_path(model_type, k_fold_number, include_distance_feature,
+                                                 include_sequence_features, balanced, trans_type, trans_all_fold,
+                                                 trans_only_positive, exclude_targets_without_positives, path_prefix)
+    dir_path = general_utilities.FILES_DIR + "models_" + \
+        str(k_fold_number) + "fold/" + path_prefix + model_type + \
+        "_xgb_model_fold_" + str(fold_index) + suffix + ".xgb"
+
+    return dir_path
+
+
+def extract_model_results_path(model_type, data_type, k_fold_number, include_distance_feature,
+                               include_sequence_features, balanced, trans_type, trans_all_fold, trans_only_positive,
+                               exclude_targets_without_positives, evaluate_only_distance, suffix_add, path_prefix):
+    """
+    extract model results path
+    """
+    path_prefix, suffix = prefix_and_suffix_path(model_type, k_fold_number, include_distance_feature,
+                                                 include_sequence_features, balanced, trans_type, trans_all_fold,
+                                                 trans_only_positive, exclude_targets_without_positives, path_prefix)
+    suffix = suffix + ("" if evaluate_only_distance is None else "_distance_" + str(evaluate_only_distance))
+    suffix = suffix + suffix_add
+    dir_path = general_utilities.FILES_DIR + "models_" + str(k_fold_number) +\
+        "fold/" + path_prefix + data_type + "_" + model_type +\
+        "_results_xgb_model_all_" + str(k_fold_number) + "_folds" + suffix + ".csv"
+
+    return dir_path
+##########################################################################
+
+
+def transformer_generator(data, trans_type):
     """
     Create create data transformer
     """
-    if model_type == "regression_with_negatives":
-        negative_labels = np.zeros(
-            (len(negative_df),))
-        positive_labels = positive_df[data_type+"_reads"].values
-        sequence_labels = np.concatenate(
-            (negative_labels, positive_labels))
-    elif model_type == "regression_without_negatives":
-        sequence_labels = positive_df[data_type+"_reads"].values
+    data = data.reshape(-1, 1)
+    if trans_type == "no_trans":
+        # identity transformer
+        transformer = FunctionTransformer()
+    elif trans_type == "ln_x_plus_one_trans":
+        transformer = FunctionTransformer(func=np.log1p, inverse_func=np.expm1)
+    elif trans_type == "ln_x_plus_one_and_max_trans":
+        transformer_1 = FunctionTransformer(func=np.log1p, inverse_func=np.expm1)
+        data = transformer_1.transform(data)
+        transformer_2 = MaxAbsScaler()
+        transformer_2.fit(data)
+        transformer = (transformer_1, transformer_2)
+    elif trans_type == "standard_trans":
+        transformer = StandardScaler()
+        transformer.fit(data)
+    elif trans_type == "max_trans":
+        transformer = MaxAbsScaler()
+        transformer.fit(data)
+    elif trans_type == "box_cox_trans":
+        if np.all(data == data[0]):
+            # if the input data is constant, the return identity transformer
+            print("identity transformer (instead of box-cox) was returned since the input data is constant")
+            transformer = FunctionTransformer()
+        else:
+            # we balance the negatives and positives and then fit the transformation.
+            data = data[data > 0]
+            data = data.reshape(-1, 1)
+            data = np.concatenate([data, np.zeros(data.shape)])
+            # we perform box-cox on data+1
+            transformer_1 = FunctionTransformer(func=lambda x: x + 1, inverse_func=lambda x: x - 1)
+            data = transformer_1.transform(data)
+            transformer_2 = PowerTransformer(method='box-cox')
+            transformer_2.fit(data)
+            transformer = (transformer_1, transformer_2)
+    elif trans_type == "yeo_johnson_trans":
+        if np.all(data == data[0]):
+            # if the input data is constant, the return identity transformer
+            print("identity transformer (instead of yeo-johnson) was returned since the input data is constant")
+            transformer = FunctionTransformer()
+        else:
+            # we balance the negatives and positives and then fit the transformation.
+            data = data[data > 0]
+            data = data.reshape(-1, 1)
+            data = np.concatenate([data, np.zeros(data.shape)])
+            transformer = PowerTransformer(method='yeo-johnson')
+            transformer.fit(data)
     else:
-        return None
-
-    if trans_type == "box_cox":
-        transformer = PowerTransformer(method='box-cox')
-        # we perform box cox on sequence_labels+1
-        transformer.fit((sequence_labels+1).reshape(-1, 1))
-    elif trans_type == "yeo_johnson":
-        transformer = PowerTransformer(method='yeo-johnson')
-        # we perform yeo-johnson on sequence_labels
-        transformer.fit(sequence_labels.reshape(-1, 1))
-    else:
-        transformer = None
+        raise ValueError("Invalid trans_type")
 
     return transformer
 
 
-def data_trans(data, trans_type="ln_x_plus_one_trans", transformer=None, inverse=False):
+def transform(data, transformer, inverse=False):
     """
-    perform data transformation
+    transform function
     """
-    if trans_type == "no_trans":
-        return data
-    elif trans_type == "ln_x_plus_one_trans":
-        # log(x+1) trans
-        if inverse:
-            return np.exp(data)-1
-        else:
-            return np.log(data+1)
-    elif trans_type == "box_cox":
-        # box_cox(x+1) trans
-        if transformer is None:
-            raise ValueError('transformer should not be None.')
-        if inverse:
-            return np.squeeze(transformer.inverse_transform(data.reshape(-1, 1))-1)
-        else:
-            return np.squeeze(transformer.transform((data+1).reshape(-1, 1)))
-    elif trans_type == "yeo_johnson":
-        # yeo_johnson(x) trans
-        if transformer is None:
-            raise ValueError('transformer should not be None.')
-        if inverse:
-            return np.squeeze(transformer.inverse_transform(data.reshape(-1, 1)))
-        else:
-            return np.squeeze(transformer.transform(data.reshape(-1, 1)))
+    data = data.reshape(-1, 1)
+    if not isinstance(transformer, (list, tuple)):
+        transformer = [transformer]
+    if not inverse:
+        for transformer_i in transformer:
+            data = transformer_i.transform(data)
     else:
-        raise ValueError('trans_type is invalid.')
+        for transformer_i in transformer[::-1]:
+            data = transformer_i.inverse_transform(data)
+
+    return np.squeeze(data)
+
+
+# def create_transformer(positive_df, negative_df, trans_type, model_type, data_type='CHANGEseq'):
+#     """
+#     Create create data transformer
+#     """
+#     if model_type == "regression_with_negatives":
+#         negative_labels = np.zeros(
+#             (len(negative_df),))
+#         positive_labels = positive_df[data_type+"_reads"].values
+#         sequence_labels = np.concatenate(
+#             (negative_labels, positive_labels))
+#     elif model_type == "regression_without_negatives":
+#         sequence_labels = positive_df[data_type+"_reads"].values
+#     else:
+#         return None
+
+#     if trans_type == "box_cox":
+#         transformer = PowerTransformer(method='box-cox')
+#         # we perform box cox on sequence_labels+1
+#         transformer.fit((sequence_labels+1).reshape(-1, 1))
+#     elif trans_type == "yeo_johnson":
+#         transformer = PowerTransformer(method='yeo-johnson')
+#         # we perform yeo-johnson on sequence_labels
+#         transformer.fit(sequence_labels.reshape(-1, 1))
+#     else:
+#         transformer = None
+
+#     return transformer
+
+
+# def data_trans(data, trans_type="ln_x_plus_one_trans", transformer=None, inverse=False):
+#     """
+#     perform data transformation
+#     """
+#     if trans_type == "no_trans":
+#         return data
+#     elif trans_type == "ln_x_plus_one_trans":
+#         # log(x+1) trans
+#         if inverse:
+#             return np.exp(data)-1
+#         else:
+#             return np.log(data+1)
+#     elif trans_type == "box_cox":
+#         # box_cox(x+1) trans
+#         if transformer is None:
+#             raise ValueError('transformer should not be None.')
+#         if inverse:
+#             return np.squeeze(transformer.inverse_transform(data.reshape(-1, 1))-1)
+#         else:
+#             return np.squeeze(transformer.transform((data+1).reshape(-1, 1)))
+#     elif trans_type == "yeo_johnson":
+#         # yeo_johnson(x) trans
+#         if transformer is None:
+#             raise ValueError('transformer should not be None.')
+#         if inverse:
+#             return np.squeeze(transformer.inverse_transform(data.reshape(-1, 1)))
+#         else:
+#             return np.squeeze(transformer.transform(data.reshape(-1, 1)))
+#     else:
+#         raise ValueError('trans_type is invalid.')

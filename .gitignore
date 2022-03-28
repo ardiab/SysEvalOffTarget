@@ -1,62 +1,42 @@
-/files/old_files/
-/files/models_1fold/
-/files/models_10fold/
-/files/models_10_fold/
-/files/outputs/
+# files
+
+files_revision_1/
+files/models_1fold/
+files/models_10fold/
+files/models_10_fold/
+files/models_retrained/
+
+files/outputs
+files/outputs_spearman
+files/outputs_without_inv_trans
+
+files/README
+
+files/datasets/exclude_on_targets
+files/datasets/include_on_targets
+files/datasets/output_file_pam_change.txt
+
+# general
 __pycache__/
 .ipynb_checkpoints/
 SysEvalOffTarget_src/__pycache__
-eda.html
-eda.ipynb
-eda.py
-main.py
-models_predictions.log
-plots_final copy 2.py
-plots_final copy.py
-plots_final.py
-prepare_data.ipynb
-prepare_data.log
-retrain_with_on_target.log
-script.py
-test_main.py
-test_models.log
-test_the_retrain_with_on_target.log
-test_train_with_on_target_test_without.log
-train_main.py
-train_models.log
-train_with_old_dataset.log
-.vscode/settings.json
-plots_final copy 3.py
-predictions_change_seq_models_on_guide_seq.log
-test_models_include_on_in_test.log
-train_1fold_models.log
-train_base_models_for_TL_and_incremental_train_GS_add_and_update_models.log
-train_base_models_for_TL_and_incremental_train_GS_models.log
-train_models_completions.log
-train_models_exclude_on.log
-train_models_include_on.log
-train_TL_models.log
-files/datasets/input_file_pam_change.txt
-files/datasets/output_file_pam_change.txt
-files/datasets/exclude_on_targets/CHANGEseq_negative.csv
-files/datasets/exclude_on_targets/CHANGEseq_positive.csv
-files/datasets/exclude_on_targets/CHANGEseq_undefined.csv
-files/datasets/exclude_on_targets/GUIDEseq_negative.csv
-files/datasets/exclude_on_targets/GUIDEseq_positive.csv
-files/datasets/exclude_on_targets/GUIDEseq_undefined.csv
-files/datasets/include_on_targets/CHANGEseq_negative.csv
-files/datasets/include_on_targets/CHANGEseq_positive.csv
-files/datasets/include_on_targets/GUIDEseq_negative.csv
-files/datasets/include_on_targets/CHANGEseq_undefined.csv
-files/datasets/include_on_targets/GUIDEseq_positive.csv
-timing.log
+.idea/
+.vscode/
+*.pyc
 
-files/outputs_spearman
-files/datasets/include_on_targets/CHANGE_GUIDE_intersection.csv
-files/datasets/include_on_targets/CHANGE_GUIDE_intersection_by_GUIDE_positive.csv
-files/datasets/include_on_targets/CHANGE_GUIDE_intersection_by_GUIDE_negative.csv
-files/datasets/include_on_targets/CHANGE_GUIDE_intersection_by_both_positive.csv
-files/datasets/include_on_targets/CHANGE_GUIDE_intersection_by_both_negative.csv
-tl_plots.py
-plots_final_pearson.py
-plots_final_spearman.py
+# deploy
+deploy/
+
+# development
+dev_*
+
+
+# main folder files
+evaluate_by_folds_change_seq- final.ipynb
+evaluate_by_folds_guide_seq- final.ipynb
+incremetal_folds.ipynb
+trans_comp.ipynb
+
+
+# new ignores (sort them)
+
