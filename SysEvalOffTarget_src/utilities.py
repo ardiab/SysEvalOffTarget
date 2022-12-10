@@ -82,45 +82,60 @@ def create_nucleotides_to_position_mapping():
     return nucleotides_to_position_mapping
 
 
-def build_sequence_features(dataset_df, nucleotides_to_position_mapping,
-                            include_distance_feature=False,
-                            include_sequence_features=True):
+def build_sequence_features(dataset_df, nucleotides_to_position_mapping, out_format):
     """
     Build sequence features using the nucleotides to position mapping
     """
-    if (not include_distance_feature) and (not include_sequence_features):
-        raise ValueError(
-            'include_distance_feature and include_sequence_features can not be both False')
+    # if (not include_distance_feature) and (not include_sequence_features):
+    #     raise ValueError(
+    #         'include_distance_feature and include_sequence_features can not be both False')
 
+    assert out_format in ['4x4', '16x1']
     # convert dataset_df["target"] -3 position to 'N'
-    print("Converting the [-3] positions in each sgRNA sequence to 'N'")
+    # print("Converting the [-3] positions in each sgRNA sequence to 'N'")
     dataset_df['target'] = dataset_df['target'].apply(lambda s: s[:-3] + 'N' + s[-2:])
 
-    if include_sequence_features:
-        final_result = np.zeros((len(dataset_df), (23*16)+1),
-                                dtype=np.int8) if include_distance_feature else \
-            np.zeros((len(dataset_df), 23*16), dtype=np.int8)
-    else:
-        final_result = np.zeros((len(dataset_df), 1), dtype=np.int8)
-    for i, (seq1, seq2) in enumerate(zip(dataset_df["target"], dataset_df["offtarget_sequence"])):
-        if include_sequence_features:
+    # if include_sequence_features:
+    #     final_result = np.zeros((len(dataset_df), (23*16)+1),
+    #                             dtype=np.int8) if include_distance_feature else \
+    #         np.zeros((len(dataset_df), 23*16), dtype=np.int8)
+    # else:
+    #     final_result = np.zeros((len(dataset_df), 1), dtype=np.int8)
+    final_seq = np.zeros((len(dataset_df), 4, 23*4) if out_format == '4x4' else (len(dataset_df), 16, 23), dtype=np.int8)
+    final_dist = np.zeros((len(dataset_df), 1), dtype=np.int8)
+
+    if out_format == '4x4':
+        for i, (seq1, seq2) in enumerate(zip(dataset_df["target"], dataset_df["offtarget_sequence"])):
+            # if include_sequence_features:
             intersection_matrices = np.zeros((23, 4, 4), dtype=np.int8)
             for j in range(23):
                 matrix_positions = nucleotides_to_position_mapping[(
                     seq1[j], seq2[j])]
+                final_seq[i, matrix_positions[0], (4*j)+matrix_positions[1]] = 1
                 intersection_matrices[j, matrix_positions[0],
                                       matrix_positions[1]] = 1
-        else:
-            intersection_matrices = None
+            # else:
+            #     intersection_matrices = None
+            final_dist[i] = dataset_df["distance"].iloc[i]
+    else:
+        for i, (seq1, seq2) in enumerate(zip(dataset_df["target"], dataset_df["offtarget_sequence"])):
+            for j in range(23):
+                matrix_positions = nucleotides_to_position_mapping[(
+                    seq1[j], seq2[j])]
+                m = np.zeros((4, 4), dtype=np.int8)
+                m[matrix_positions[0], matrix_positions[1]] = 1
+                final_seq[i, :, j] = m.flatten()
 
-        if include_distance_feature:
-            if include_sequence_features:
-                final_result[i, :-1] = intersection_matrices.flatten()
-            final_result[i, -1] = dataset_df["distance"].iloc[i]
-        else:
-            final_result[i, :] = intersection_matrices.flatten()
+            final_dist[i] = dataset_df["distance"].iloc[i]
 
-    return final_result
+        # if include_distance_feature:
+        #     if include_sequence_features:
+        #         final_result[i, :-1] = intersection_matrices.flatten()
+        #     final_result[i, -1] = dataset_df["distance"].iloc[i]
+        # else:
+        #     final_result[i, :] = intersection_matrices.flatten()
+
+    return final_seq, final_dist
 
 ##########################################################################
 

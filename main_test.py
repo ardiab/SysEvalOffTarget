@@ -72,6 +72,7 @@ def regular_test_models(
     except FileNotFoundError:
         targets_change_seq = order_sg_rnas()
 
+    data_types = ['GUIDEseq']  # TODO: REMOVE
     for data_type in data_types:
         datasets_dir_path = general_utilities.DATASETS_PATH
         datasets_dir_path += 'exclude_on_targets/' if test_exclude_on_targets else 'include_on_targets/'

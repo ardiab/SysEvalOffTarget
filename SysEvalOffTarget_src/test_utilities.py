@@ -142,7 +142,8 @@ def model_folds_predictions(positive_df, negative_df, targets, nucleotides_to_po
 
     # create the predictions df and inset the predictions of the fold models
     predictions_dfs = [pd.DataFrame(), pd.DataFrame()]
-    target_folds_list = np.array_split(targets, k_fold_number)
+    # target_folds_list = np.array_split(targets, k_fold_number)
+    target_folds_list = [targets]
     for i, target_fold in enumerate(target_folds_list):
         # we don't exclude the targets without positives from the prediction stage.
         # if required, it is done in the evaluation stage
@@ -150,11 +151,23 @@ def model_folds_predictions(positive_df, negative_df, targets, nucleotides_to_po
                                                                negative_df, balanced=False,
                                                                evaluate_only_distance=evaluate_only_distance,
                                                                exclude_targets_without_positives=False)
-        model = load_model(model_type, k_fold_number, i, gpu, trans_type, balanced,
-                           include_distance_feature, include_sequence_features, path_prefix,
-                           trans_all_fold, trans_only_positive, exclude_targets_without_positives)
+        # model = load_model(model_type, k_fold_number, i, gpu, trans_type, balanced,
+        #                    include_distance_feature, include_sequence_features, path_prefix,
+        #                    trans_all_fold, trans_only_positive, exclude_targets_without_positives)
         # predict and insert the predictions into the predictions dfs
 
+        pos_features = build_sequence_features(positive_df_test, nucleotides_to_position_mapping,
+                                                             include_distance_feature=include_distance_feature,
+                                                             include_sequence_features=include_sequence_features)
+        pos_seqs = positive_df_test['target'].tolist()
+        neg_features = build_sequence_features(negative_df_test, nucleotides_to_position_mapping,
+                                                             include_distance_feature=include_distance_feature,
+                                                             include_sequence_features=include_sequence_features)
+        neg_seqs = negative_df_test['target'].tolist()
+        with open(f'/Users/aboud/Desktop/Vault/Projects/cmpt983_crispr_proj/guideseq_pos.pkl', 'wb') as out_f:
+            pkl.dump({'features': pos_features, 'targets': pos_seqs}, out_f)
+        with open(f'/Users/aboud/Desktop/Vault/Projects/cmpt983_crispr_proj/guideseq_neg.pkl', 'wb') as out_f:
+            pkl.dump({'features': neg_features, 'targets': neg_seqs}, out_f)
         for j, dataset_df in enumerate((positive_df_test, negative_df_test)):
 
             sequence_features_test = build_sequence_features(dataset_df, nucleotides_to_position_mapping,
